@@ -145,3 +145,27 @@ The included image assets were generated during this ChatGPT conversation and pr
 - Added `farmer_idle_right.png` and `farmer_idle_left.png`.
 - The old front-facing idle image is no longer used in gameplay.
 - When the farmer stops, he stands still holding the basket and faces the last movement direction.
+
+
+## Mobile / Tablet Update
+- Phaser now refreshes its scale on resize and orientation change.
+- CSS uses `100dvh`/`100svh`, disables scrolling, and prevents browser touch gestures during play.
+- Touch/tablet/phone devices show two large circular movement buttons: ◀ and ▶.
+- The player can still tap a chicken lane directly to move the farmer there.
+- Desktop controls remain: Arrow keys or A/D.
+
+## Optional Startup Art
+The package also includes `public/assets/startup_screen.png`, the latest barnyard title artwork without the embedded Start Game button. It can be used later as a full-screen menu background if desired.
+
+
+## One-Step Mobile Controls Update
+- The circular mobile/tablet buttons now move the farmer exactly one chicken lane per tap/click.
+- Button touches no longer also trigger the background lane-tap handler, so they do not jump to the far-left or far-right lane.
+- A small debounce prevents one physical tap from being counted twice on some touch devices.
+
+
+## Tablet / Phone Landscape Update
+- Moved the score HUD and Sound/Pause buttons higher and made them smaller so they no longer cover the chickens.
+- Added a portrait-mode warning overlay for touch devices asking players to rotate sideways.
+- Added an optional landscape-lock request after the first user tap/click. Browsers that do not support orientation lock will still show the rotate overlay.
+- The game still uses Phaser Scale.FIT, so it resizes cleanly across phones, tablets, laptops, and desktops.

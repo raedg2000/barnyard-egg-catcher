@@ -39,6 +39,10 @@ export class GameScene extends Phaser.Scene {
   private toastText!: Phaser.GameObjects.Text;
   private pauseOverlay?: Phaser.GameObjects.Container;
   private soundButton?: Phaser.GameObjects.Container;
+  private mobileControls?: Phaser.GameObjects.Container;
+  private mobileButtonPointerActive = false;
+  private suppressLaneTapUntil = 0;
+  private lastMobileButtonStepAt = -1000;
 
   private leftKey?: Phaser.Input.Keyboard.Key;
   private rightKey?: Phaser.Input.Keyboard.Key;
@@ -58,6 +62,7 @@ export class GameScene extends Phaser.Scene {
     this.resetState();
     this.buildWorld();
     this.buildHud();
+    this.buildMobileControls();
     this.bindInput();
     AudioEngine.instance.startMusic();
   }
@@ -165,12 +170,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
-    addPanel(this, 24, 18, 520, 64, 0.82).setDepth(50);
-    this.scoreText = this.add.text(48, 33, "Score: 0", this.hudStyle()).setDepth(51);
-    this.levelText = this.add.text(224, 33, "Level: 1", this.hudStyle()).setDepth(51);
-    this.missesText = this.add.text(364, 33, "Broken: 0/5", this.hudStyle()).setDepth(51);
+    // Keep the top HUD above the chickens/perch on phones and tablets.
+    // The panel is deliberately thinner and closer to the top edge.
+    addPanel(this, 14, 4, 506, 50, 0.82).setDepth(50);
+    this.scoreText = this.add.text(34, 18, "Score: 0", this.hudStyle()).setDepth(51);
+    this.levelText = this.add.text(198, 18, "Level: 1", this.hudStyle()).setDepth(51);
+    this.missesText = this.add.text(324, 18, "Broken: 0/5", this.hudStyle()).setDepth(51);
 
-    this.helpText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 30, "Use ← → or A/D. The farmer snaps to each chicken lane for easy catching.", {
+    this.helpText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 30, this.helpMessage(), {
       fontFamily: "Trebuchet MS, Segoe UI, sans-serif",
       fontSize: "20px",
       color: "#fff4d4",
@@ -188,18 +195,132 @@ export class GameScene extends Phaser.Scene {
       strokeThickness: 8
     }).setOrigin(0.5).setDepth(60).setAlpha(0);
 
-    addButton(this, GAME_WIDTH - 86, 50, 142, 48, "Pause", () => this.togglePause(), 21).setDepth(54);
-    this.soundButton = addButton(this, GAME_WIDTH - 252, 50, 154, 48, "Sound: On", () => this.toggleSound(), 19).setDepth(54);
+    // Smaller and higher so these buttons do not cover the right-side chicken.
+    addButton(this, GAME_WIDTH - 74, 29, 128, 40, "Pause", () => this.togglePause(), 19).setDepth(54);
+    this.soundButton = addButton(this, GAME_WIDTH - 224, 29, 144, 40, "Sound: On", () => this.toggleSound(), 17).setDepth(54);
   }
 
   private hudStyle(): Phaser.Types.GameObjects.Text.TextStyle {
     return {
       fontFamily: "Trebuchet MS, Segoe UI, sans-serif",
-      fontSize: "24px",
+      fontSize: "22px",
       color: "#fff3d4",
       fontStyle: "bold"
     };
   }
+
+
+  private helpMessage(): string {
+    return this.isTouchLikeDevice()
+      ? "Tap a lane, or use the big ◀ ▶ buttons to move the farmer."
+      : "Use ← → or A/D. The farmer snaps to each chicken lane for easy catching.";
+  }
+
+  private isTouchLikeDevice(): boolean {
+    const hasTouch = navigator.maxTouchPoints > 0;
+    const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+    return hasTouch || coarsePointer;
+  }
+
+  private buildMobileControls(): void {
+    if (!this.isTouchLikeDevice()) return;
+
+    this.mobileControls = this.add.container(0, 0).setDepth(58);
+    const leftButton = this.createMobileMoveButton(92, GAME_HEIGHT - 104, "◀", () => {
+      AudioEngine.instance.resume();
+      this.mobileStepOneLane(-1);
+    });
+    const rightButton = this.createMobileMoveButton(GAME_WIDTH - 92, GAME_HEIGHT - 104, "▶", () => {
+      AudioEngine.instance.resume();
+      this.mobileStepOneLane(1);
+    });
+
+    const hint = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 92, "Touch Controls", {
+      fontFamily: "Trebuchet MS, Segoe UI, sans-serif",
+      fontSize: "22px",
+      color: "#fff1b4",
+      fontStyle: "bold",
+      stroke: "#3e1905",
+      strokeThickness: 5
+    }).setOrigin(0.5).setAlpha(0.72);
+
+    this.mobileControls.add([leftButton, rightButton, hint]);
+  }
+
+  private createMobileMoveButton(x: number, y: number, label: string, onTap: () => void): Phaser.GameObjects.Container {
+    const radius = 58;
+    const button = this.add.container(x, y);
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.32);
+    shadow.fillCircle(5, 8, radius + 3);
+
+    const circle = this.add.graphics();
+    circle.fillStyle(0xffd474, 0.94);
+    circle.lineStyle(6, 0x8b4a12, 0.92);
+    circle.fillCircle(0, 0, radius);
+    circle.strokeCircle(0, 0, radius);
+    circle.lineStyle(3, 0xfff3bd, 0.9);
+    circle.strokeCircle(0, 0, radius - 9);
+
+    const text = this.add.text(0, -2, label, {
+      fontFamily: "Trebuchet MS, Segoe UI, sans-serif",
+      fontSize: "62px",
+      color: "#5c2a08",
+      fontStyle: "bold",
+      stroke: "#fff2bf",
+      strokeThickness: 5
+    }).setOrigin(0.5);
+
+    button.add([shadow, circle, text]);
+    button.setInteractive(new Phaser.Geom.Circle(0, 0, radius + 12), Phaser.Geom.Circle.Contains);
+
+    const stopTouchFromAlsoSelectingLane = (event?: { stopPropagation: () => void }): void => {
+      event?.stopPropagation();
+      this.suppressLaneTapUntil = this.time.now + 260;
+    };
+
+    button.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event?: { stopPropagation: () => void }) => {
+        this.mobileButtonPointerActive = true;
+        stopTouchFromAlsoSelectingLane(event);
+        onTap();
+        this.tweens.add({ targets: button, scaleX: 0.92, scaleY: 0.92, duration: 60, yoyo: true, ease: "Sine.inOut" });
+      }
+    );
+
+    button.on(
+      Phaser.Input.Events.POINTER_UP,
+      (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event?: { stopPropagation: () => void }) => {
+        this.mobileButtonPointerActive = false;
+        stopTouchFromAlsoSelectingLane(event);
+      }
+    );
+
+    button.on(
+      Phaser.Input.Events.POINTER_OUT,
+      (_pointer: Phaser.Input.Pointer, event?: { stopPropagation: () => void }) => {
+        this.mobileButtonPointerActive = false;
+        stopTouchFromAlsoSelectingLane(event);
+      }
+    );
+
+    return button;
+  }
+
+  private mobileStepOneLane(direction: -1 | 1): void {
+    // A tap/click on a circular control should move exactly one lane.
+    // Debounce avoids a single touch being counted twice on some tablets.
+    const now = this.time.now;
+    if (now - this.lastMobileButtonStepAt < 120) return;
+    this.lastMobileButtonStepAt = now;
+    this.moveToLane(this.targetLaneIndex + direction);
+  }
+
+  private shouldIgnoreLaneTap(): boolean {
+    return this.mobileButtonPointerActive || this.time.now < this.suppressLaneTapUntil;
+  }
+
 
   private bindInput(): void {
     const keys = this.input.keyboard?.addKeys({
@@ -215,11 +336,13 @@ export class GameScene extends Phaser.Scene {
     this.dKey = keys?.d;
 
     this.input.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer) => {
+      if (this.shouldIgnoreLaneTap()) return;
       AudioEngine.instance.resume();
       this.setBasketTarget(pointer.x);
     });
 
     this.input.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer) => {
+      if (this.shouldIgnoreLaneTap()) return;
       if (pointer.isDown) this.setBasketTarget(pointer.x);
     });
 

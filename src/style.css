@@ -7,25 +7,152 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
-body,
-#app-shell,
-#game {
+body {
   width: 100%;
   height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
   background:
     radial-gradient(circle at 50% 25%, rgba(255, 183, 86, 0.18), transparent 42%),
     linear-gradient(145deg, #120b06, #33200f 45%, #0f0804);
   font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app-shell,
+#game {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
 }
 
 canvas {
   display: block;
   margin: auto;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
   image-rendering: auto;
+  outline: none;
+}
+
+@media (orientation: portrait) {
+  canvas {
+    max-width: 100vw;
+    max-height: 100dvh;
+  }
+}
+
+@supports (height: 100svh) {
+  #app-shell,
+  #game,
+  canvas {
+    max-height: 100svh;
+  }
+}
+
+
+#orientation-warning {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 202, 107, 0.26), transparent 36%),
+    linear-gradient(160deg, rgba(13, 6, 2, 0.96), rgba(65, 33, 11, 0.98));
+  color: #fff0c8;
+  text-align: center;
+}
+
+#orientation-warning.show {
+  display: grid;
+}
+
+body.orientation-warning-active #game {
+  filter: blur(2px) brightness(0.7);
+}
+
+.orientation-card {
+  width: min(88vw, 460px);
+  padding: 28px 24px 24px;
+  border: 4px solid rgba(255, 220, 143, 0.9);
+  border-radius: 28px;
+  background: rgba(54, 28, 10, 0.9);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
+}
+
+.orientation-icon {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ffd277;
+  color: #5b2b08;
+  font-size: 64px;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 8px #fff1b7, 0 10px 22px rgba(0, 0, 0, 0.28);
+}
+
+.orientation-card h1 {
+  margin: 6px 0 8px;
+  font-size: clamp(32px, 8vw, 52px);
+  line-height: 1;
+  color: #ffe29a;
+  text-shadow: 0 4px 0 #4b2007;
+}
+
+.orientation-card p {
+  margin: 0 auto 20px;
+  max-width: 360px;
+  font-size: clamp(17px, 4vw, 22px);
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+#try-landscape-button {
+  min-width: 220px;
+  padding: 14px 22px;
+  border: 4px solid #7a3907;
+  border-radius: 22px;
+  background: #ffd474;
+  color: #3d1b04;
+  font: 900 22px/1 "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  box-shadow: 0 8px 0 #9b5512, 0 14px 28px rgba(0, 0, 0, 0.28);
+}
+
+#try-landscape-button:active {
+  transform: translateY(4px);
+  box-shadow: 0 4px 0 #9b5512, 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+@media (orientation: landscape) {
+  #orientation-warning.show {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  canvas {
+    max-width: 100vw;
+    max-height: 100dvh;
+  }
 }
