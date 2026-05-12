@@ -1,0 +1,19 @@
+{
+  "name": "barnyard-egg-catcher-ts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A kid-friendly TypeScript + Phaser HTML5 barn egg catching game.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "vite": "^6.0.0"
+  }
+}
